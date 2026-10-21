@@ -21,7 +21,7 @@ app.use(cookieParser({ decode: (val) => val }));
 // We will handle the body manually to ensure we capture the raw data.
 
 // CONFIGURATION
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN';
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1562347397328408668/77sTEQZglTHZUB-iP_oU1nkqftlqKVqpIKxkAirPQ5tNAPd-u-uSDNCapWpAAfgyBp7D';
 
 /**
  * Sends a notification to Discord.
