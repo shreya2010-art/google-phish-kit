@@ -1,18 +1,11 @@
 {
   "name": "google-phish-kit",
   "version": "1.0.0",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js"
-  },
-  "dependencies": {
-    "cookie-parser": "^1.4.7",
-    "express": "^5.3.0",
-    "http-proxy": "^1.18.1",
-    "raw-body": "^2.5.2",
-    "undici": "^8.12.3"
-  },
   "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/shreya2010-art/google-phish-kit.git"
@@ -22,5 +15,9 @@
   "bugs": {
     "url": "https://github.com/shreya2010-art/google-phish-kit/issues"
   },
-  "homepage": "https://github.com/shreya2010-art/google-phish-kit#readme"
+  "homepage": "https://github.com/shreya2010-art/google-phish-kit#readme",
+  "dependencies": {
+    "express": "^4.22.3",
+    "undici": "^8.12.3"
+  }
 }
